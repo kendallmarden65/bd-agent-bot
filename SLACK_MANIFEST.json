@@ -1,0 +1,40 @@
+{
+  "display_information": {
+    "name": "BD Agent"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "BD Agent",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/bd",
+        "description": "BD Agent (AI SDR)",
+        "usage_hint": "[task]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "commands",
+        "chat:write",
+        "app_mentions:read",
+        "im:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "socket_mode_enabled": true
+  }
+}
