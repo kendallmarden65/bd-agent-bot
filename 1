@@ -1,0 +1,73 @@
+# app.py
+# BD Agent Slack bot (socket mode) — uses OpenAI gpt-4.1
+import os
+import logging
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+from openai import OpenAI
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# OpenAI client
+openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Slack app (Socket Mode)
+app = App(token=os.getenv("SLACK_BOT_TOKEN"))
+
+SYSTEM_PROMPT = """
+You are BD Agent, a business development SDR for selling a $249 AI landline receptionist device to hair salons.
+Behaviors:
+- Keep responses short, actionable, revenue-focused.
+- When asked for outreach, produce 1) 20 salon lead suggestions (OC), 2) short cold email, 3) 2-line SMS, 4) a 30s cold call opener.
+- When asked to start a pilot, produce an install checklist and shipping message.
+"""
+
+def ask_ai(user_prompt, user_id=None):
+    try:
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+        resp = openai.chat.completions.create(
+            model="gpt-4.1",
+            messages=messages,
+            max_tokens=600,
+            temperature=0.2
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        logger.exception("OpenAI error")
+        return "Sorry, I couldn't reach the AI right now."
+
+# Slash command: /bd
+@app.command("/bd")
+def handle_bd(ack, respond, command):
+    ack()
+    user_text = command.get("text", "").strip()
+    if not user_text:
+        respond("Usage: `/bd [task]` — e.g., `/bd generate 20 OC hair salon leads`")
+        return
+    respond("Working on it...")  # immediate feedback
+    output = ask_ai(user_text, user_id=command.get("user_id"))
+    respond(output)
+
+# App mention handler
+@app.event("app_mention")
+def mention_handler(body, say):
+    text = body["event"].get("text", "")
+    # strip mention
+    # send to AI
+    output = ask_ai(text, user_id=body["event"].get("user"))
+    say(output)
+
+if __name__ == "__main__":
+    # Ensure env vars are present
+    required = ["OPENAI_API_KEY", "SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]
+    missing = [k for k in required if not os.getenv(k)]
+    if missing:
+        logger.error("Missing required env vars: %s", missing)
+        print(f"Missing required env vars: {missing}")
+        raise SystemExit(1)
+    handler = SocketModeHandler(app, os.getenv("SLACK_APP_TOKEN"))
+    handler.start()
